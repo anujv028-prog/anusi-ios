@@ -3,121 +3,97 @@ import SwiftUI
 struct SplashView: View {
     @Binding var isFinished: Bool
     
-    // In-animation states
-    @State private var logoScale: CGFloat = 0.78
-    @State private var logoOpacity: Double = 0.0
-    @State private var logoOffsetY: CGFloat = 18
-    @State private var glowOpacity: Double = 0.0
+    // In-animation states (Flipkart / Myntra Pop & Bounce)
+    @State private var logoScale: CGFloat = 0.55
+    @State private var logoOpacity: Double = 0.3
     
-    // Butterfly floating breath
-    @State private var floatOffset: CGFloat = 0.0
+    // Pulse effect
+    @State private var pulseScale: CGFloat = 1.0
     
-    // Shimmer sheen
-    @State private var shimmerOffset: CGFloat = -260
-    
-    // Out-animation states (Exit animation)
+    // Out-animation states (Flipkart / Myntra Zoom & Reveal)
     @State private var outScale: CGFloat = 1.0
-    @State private var splashOverallOpacity: Double = 1.0
+    @State private var splashOpacity: Double = 1.0
     
     var body: some View {
         ZStack {
-            // Luxury pure white background
+            // Clean pristine white background
             Color.white
                 .ignoresSafeArea()
             
-            // Subtle ambient warm gold radiance in the center
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.99, green: 0.96, blue: 0.94).opacity(0.95),
-                    Color.white
-                ]),
-                center: .center,
-                startRadius: 30,
-                endRadius: 340
-            )
-            .ignoresSafeArea()
-            
-            // Perfectly Centered Luxury Logo
-            ZStack {
-                // Soft Rose-Gold Glow
-                Image("logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 300)
-                    .blur(radius: 22)
-                    .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.58))
-                    .opacity(glowOpacity * 0.35)
-                    .scaleEffect(logoScale * outScale)
-                    .offset(y: logoOffsetY + floatOffset)
+            // Centered Logo View
+            VStack {
+                Spacer()
                 
-                // Sharp Foreground Logo with metallic sheen
-                Image("logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 300)
-                    .scaleEffect(logoScale * outScale)
+                logoImageView
+                    .scaleEffect(logoScale * pulseScale * outScale)
                     .opacity(logoOpacity)
-                    .offset(y: logoOffsetY + floatOffset)
-                    .overlay(
-                        // Moving Diamond/Metallic Shimmer Sweep
-                        GeometryReader { geo in
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.white.opacity(0.0),
-                                    Color.white.opacity(0.6),
-                                    Color.white.opacity(0.0)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            .frame(width: 80, height: geo.size.height * 1.6)
-                            .rotationEffect(.degrees(25))
-                            .offset(x: shimmerOffset)
-                            .mask(
-                                Image("logo")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(maxWidth: 300)
-                            )
-                        }
-                    )
+                    .shadow(color: Color(red: 0.85, green: 0.65, blue: 0.58).opacity(0.35), radius: 16, x: 0, y: 8)
+                
+                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .opacity(splashOverallOpacity)
+        .opacity(splashOpacity)
         .onAppear {
-            runAnimationSequence()
+            startFlipkartMyntraAnimation()
         }
     }
     
-    private func runAnimationSequence() {
-        // 1. IN-ANIMATION: Elegant scale-in and fade-in (0s - 1.1s)
-        withAnimation(.easeOut(duration: 1.15)) {
+    // Robust image loader with multiple fallbacks
+    @ViewBuilder
+    private var logoImageView: some View {
+        if let image = loadLogoImage() {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 270, height: 160)
+        } else {
+            // Safe fallback
+            Image("Logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 270, height: 160)
+        }
+    }
+    
+    private func loadLogoImage() -> UIImage? {
+        if let img = UIImage(named: "Logo") { return img }
+        if let img = UIImage(named: "AppLogo") { return img }
+        if let img = UIImage(named: "logo") { return img }
+        if let path = Bundle.main.path(forResource: "logo", ofType: "png"), let img = UIImage(contentsOfFile: path) {
+            return img
+        }
+        return nil
+    }
+    
+    private func startFlipkartMyntraAnimation() {
+        // 1. IN-ANIMATION: Flipkart / Myntra Signature Elastic Pop (0.0s - 0.6s)
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.62, blendDuration: 0.1)) {
             logoScale = 1.0
             logoOpacity = 1.0
-            logoOffsetY = 0
-            glowOpacity = 1.0
         }
         
-        // 2. METALLIC SHIMMER: Sheen moves across the rose gold logo and butterfly (0.5s - 1.8s)
-        withAnimation(.easeInOut(duration: 1.3).delay(0.45)) {
-            shimmerOffset = 360
+        // 2. SUBTLE HEARTBEAT PULSE (0.7s - 1.4s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                pulseScale = 1.04
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    pulseScale = 1.0
+                }
+            }
         }
         
-        // 3. BUTTERFLY FLOAT: Subtle hover motion
-        withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
-            floatOffset = -5
-        }
-        
-        // 4. OUT-ANIMATION (Exit): Logo gracefully expands & dissolves into the live website (2.4s - 3.1s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.3) {
-            withAnimation(.easeInOut(duration: 0.7)) {
-                outScale = 1.10
-                splashOverallOpacity = 0.0
+        // 3. OUT-ANIMATION: Flipkart / Myntra Signature Zoom-Out & Dissolve (1.8s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                outScale = 1.28
+                splashOpacity = 0.0
             }
             
-            // Finish splash after exit animation completes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+            // Finish splash transition
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) {
                 isFinished = true
             }
         }

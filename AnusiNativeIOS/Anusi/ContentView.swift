@@ -5,10 +5,10 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // Main Website WebView
+            // Main Website WebView (preloads in background)
             WebViewContainer(urlString: "https://anusi.in")
             
-            // Animated Splash Screen with In & Out Animations
+            // Flipkart / Myntra Style Animated Splash Screen
             if !isSplashFinished {
                 SplashView(isFinished: $isSplashFinished)
                     .zIndex(1)

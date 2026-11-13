@@ -12,6 +12,7 @@
 		A10000032900000100000001 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000032900000100000001 /* SplashView.swift */; };
 		A10000042900000100000001 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000042900000100000001 /* WebViewContainer.swift */; };
 		A10000052900000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000052900000100000001 /* Assets.xcassets */; };
+		A10000062900000100000001 /* logo.png in Resources */ = {isa = PBXBuildFile; fileRef = B10000072900000100000001 /* logo.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +23,7 @@
 		B10000042900000100000001 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewContainer.swift; sourceTree = "<group>"; };
 		B10000052900000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000062900000100000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000072900000100000001 /* logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = logo.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +54,7 @@
 				B10000042900000100000001 /* WebViewContainer.swift */,
 				B10000052900000100000001 /* Assets.xcassets */,
 				B10000062900000100000001 /* Info.plist */,
+				B10000072900000100000001 /* logo.png */,
 			);
 			path = Anusi;
 			sourceTree = "<group>";
@@ -123,6 +126,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000052900000100000001 /* Assets.xcassets in Resources */,
+				A10000062900000100000001 /* logo.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
