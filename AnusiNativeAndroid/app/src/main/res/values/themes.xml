@@ -1,0 +1,13 @@
+<resources>
+    <style name="Theme.ANUSI" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/white</item>
+        <item name="colorAccent">@color/primary</item>
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.ANUSI.Fullscreen" parent="Theme.ANUSI">
+        <item name="android:windowBackground">@color/white</item>
+    </style>
+</resources>

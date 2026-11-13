@@ -1,0 +1,43 @@
+name: Build Native Android APK (ANUSI.in)
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'AnusiNativeAndroid/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Native Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build APK with Gradle
+        run: |
+          cd AnusiNativeAndroid
+          gradle assembleRelease
+
+      - name: Prepare APK
+        run: |
+          mkdir -p output
+          cp AnusiNativeAndroid/app/build/outputs/apk/release/*.apk output/ANUSI.in.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANUSI-Android-APK
+          path: output/ANUSI.in.apk
+          retention-days: 14
