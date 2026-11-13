@@ -1,0 +1,57 @@
+name: Build Android APK (ANUSI.in)
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: |
+          cd anusi-app
+          npm install
+
+      - name: Generate Native Android Project
+        run: |
+          cd anusi-app
+          npx expo prebuild --platform android --no-install
+
+      - name: Build Android APK with Gradle
+        run: |
+          cd anusi-app/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: |
+          mkdir -p output
+          cp anusi-app/android/app/build/outputs/apk/debug/app-debug.apk output/ANUSI.in.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANUSI-Android-APK
+          path: output/ANUSI.in.apk
+          retention-days: 14

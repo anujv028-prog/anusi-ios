@@ -3,6 +3,8 @@ name: Build iOS IPA (ANUSI)
 on:
   push:
     branches: [ main, master ]
+    paths:
+      - 'AnusiNativeIOS/**'
   workflow_dispatch:
 
 jobs:

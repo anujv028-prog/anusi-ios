@@ -7,11 +7,14 @@ package-lock.json
 dist/
 web-build/
 *.ipa
+*.apk
 *.xcarchive
 build/
+output/
 DerivedData/
 ANUSI.app/
 app-build.tar.gz
+anusi-app/android/
 
 # OS files
 .DS_Store

@@ -12,6 +12,7 @@ import {
   Text,
   ActivityIndicator,
   BackHandler,
+  Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -25,56 +26,54 @@ export default function App() {
 
   const webViewRef = useRef(null);
 
-  // In-animation states
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.78)).current;
-  const floatAnim = useRef(new Animated.Value(0)).current;
+  // Flipkart / Myntra In-Animation states
+  const scaleAnim = useRef(new Animated.Value(0.55)).current;
+  const fadeAnim = useRef(new Animated.Value(0.3)).current;
+  const pulseAnim = useRef(new Animated.Value(1.0)).current;
 
-  // Out-animation states
-  const splashOpacity = useRef(new Animated.Value(1)).current;
-  const outScaleAnim = useRef(new Animated.Value(1)).current;
+  // Flipkart / Myntra Out-Animation states
+  const outScaleAnim = useRef(new Animated.Value(1.0)).current;
+  const splashOpacity = useRef(new Animated.Value(1.0)).current;
 
   useEffect(() => {
-    // 1. IN-ANIMATION: Smooth luxury scale-in and fade-in
+    // 1. IN-ANIMATION: Flipkart / Myntra Signature Elastic Pop (0s - 0.55s)
     Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1.0,
+        friction: 6,
+        tension: 50,
+        useNativeDriver: true,
+      }),
       Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.out(Easing.cubic),
+        toValue: 1.0,
+        duration: 400,
+        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // 2. BUTTERFLY BREATH / FLOAT: Subtle hover loop
-    const floatLoop = Animated.loop(
+    ]).start(() => {
+      // 2. HEARTBEAT PULSE: Subtle 1.04 -> 1.0 pulse
       Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: -5,
-          duration: 1300,
-          easing: Easing.inOut(Easing.sin),
+        Animated.timing(pulseAnim, {
+          toValue: 1.04,
+          duration: 350,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(floatAnim, {
-          toValue: 3,
-          duration: 1300,
-          easing: Easing.inOut(Easing.sin),
+        Animated.timing(pulseAnim, {
+          toValue: 1.0,
+          duration: 350,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-      ])
-    );
-    floatLoop.start();
+      ]).start();
+    });
 
-    // 3. OUT-ANIMATION: Majestic expand & fade-out transition after 2.4s
+    // 3. OUT-ANIMATION: Flipkart / Myntra Signature Zoom-Out & Reveal at 1.8s
     const timer = setTimeout(() => {
       dismissSplash();
-    }, 2400);
+    }, 1800);
 
+    // Android hardware back button handler
     const onBackPress = () => {
       if (canGoBack && webViewRef.current) {
         webViewRef.current.goBack();
@@ -86,7 +85,6 @@ export default function App() {
 
     return () => {
       clearTimeout(timer);
-      floatLoop.stop();
       backSubscription.remove();
     };
   }, [canGoBack]);
@@ -94,14 +92,14 @@ export default function App() {
   const dismissSplash = () => {
     Animated.parallel([
       Animated.timing(outScaleAnim, {
-        toValue: 1.10,
-        duration: 700,
+        toValue: 1.28,
+        duration: 450,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }),
       Animated.timing(splashOpacity, {
         toValue: 0,
-        duration: 700,
+        duration: 450,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }),
@@ -142,7 +140,7 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Main WebView Screen */}
+      {/* Main Website View */}
       <View style={styles.container}>
         {loadProgress < 1 && loadProgress > 0 && (
           <View style={styles.progressBarBackground}>
@@ -190,7 +188,7 @@ export default function App() {
         )}
       </View>
 
-      {/* Luxury Animated Splash Screen */}
+      {/* Flipkart / Myntra Style Splash Overlay */}
       {showSplash && (
         <Animated.View
           style={[styles.splashContainer, { opacity: splashOpacity }]}
@@ -203,8 +201,7 @@ export default function App() {
                 {
                   opacity: fadeAnim,
                   transform: [
-                    { scale: Animated.multiply(scaleAnim, outScaleAnim) },
-                    { translateY: floatAnim },
+                    { scale: Animated.multiply(Animated.multiply(scaleAnim, pulseAnim), outScaleAnim) },
                   ],
                 },
               ]}
@@ -226,6 +223,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   container: {
     flex: 1,
@@ -287,10 +285,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 36,
     borderRadius: 25,
-    shadowColor: '#C48B71',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 4,
   },
   retryButtonText: {
@@ -311,14 +305,14 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     width: '80%',
-    maxWidth: 320,
+    maxWidth: 300,
     aspectRatio: 1.8,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#C48B71',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
-    shadowRadius: 24,
+    shadowRadius: 20,
   },
   splashLogo: {
     width: '100%',
