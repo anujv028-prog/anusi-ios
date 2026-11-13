@@ -153,7 +153,7 @@ struct SwiftUIWebView: UIViewRepresentable {
             sender.endRefreshing()
         }
         
-        // Handle external links (WhatsApp, UPI, Phone, Mail, App Store)
+        // Handle external links (WhatsApp, UPI, Phone, Mail, App Store, GPay, Tez, PhonePe, Paytm, BHIM, CRED)
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             guard let url = navigationAction.request.url else {
                 decisionHandler(.allow)
@@ -161,16 +161,22 @@ struct SwiftUIWebView: UIViewRepresentable {
             }
             
             let scheme = url.scheme?.lowercased() ?? ""
-            if scheme == "tel" || scheme == "mailto" || scheme == "sms" || scheme == "whatsapp" || scheme == "upi" || scheme == "paytmmp" || scheme == "phonepe" || scheme == "gpay" {
-                if UIApplication.shared.canOpenURL(url) {
-                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                    decisionHandler(.cancel)
-                    return
+            
+            // Normal HTTP/HTTPS web navigation
+            if scheme == "http" || scheme == "https" || scheme == "about" || scheme == "data" {
+                decisionHandler(.allow)
+                return
+            }
+            
+            // All custom schemes (upi, gpay, tez, phonepe, paytmmp, paytm, bhim, credpay, whatsapp, tel, mailto, etc.)
+            UIApplication.shared.open(url, options: [:]) { success in
+                if !success {
+                    print("Could not open custom scheme: \(url)")
                 }
             }
             
-            // Allow normal web navigation
-            decisionHandler(.allow)
+            // Cancel inside WKWebView so it never attempts to render a custom scheme as an HTML page
+            decisionHandler(.cancel)
         }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -197,8 +203,15 @@ struct SwiftUIWebView: UIViewRepresentable {
             }
         }
         
-        // Handle target="_blank" (new window / tabs)
+        // Handle target="_blank" and window.open (new window / payment popups)
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url {
+                let scheme = url.scheme?.lowercased() ?? ""
+                if scheme != "http" && scheme != "https" && scheme != "about" && scheme != "data" {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                    return nil
+                }
+            }
             if navigationAction.targetFrame == nil {
                 webView.load(navigationAction.request)
             }

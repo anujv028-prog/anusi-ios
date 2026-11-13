@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AlphaAnimation
@@ -71,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         settings.loadWithOverviewMode = true
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         settings.javaScriptCanOpenWindowsAutomatically = true
-        settings.setSupportMultipleWindows(false)
+        settings.setSupportMultipleWindows(true)
 
         // Enable third-party cookies for Shiprocket Fastrr and payment gateways
         val cookieManager = CookieManager.getInstance()
@@ -114,24 +115,110 @@ class MainActivity : AppCompatActivity() {
                     progressBar.visibility = View.GONE
                 }
             }
+
+            // Handle payment gateway popups & window.open
+            override fun onCreateWindow(
+                view: WebView?,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: Message?
+            ): Boolean {
+                val tempWebView = WebView(this@MainActivity)
+                tempWebView.settings.javaScriptEnabled = true
+                tempWebView.settings.domStorageEnabled = true
+                tempWebView.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val popupUrl = request?.url?.toString() ?: return false
+                        if (handleCustomUrl(popupUrl)) {
+                            return true
+                        }
+                        webView.loadUrl(popupUrl)
+                        return true
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                        if (url == null) return false
+                        if (handleCustomUrl(url)) {
+                            return true
+                        }
+                        webView.loadUrl(url)
+                        return true
+                    }
+                }
+                val transport = resultMsg?.obj as? WebView.WebViewTransport
+                transport?.webView = tempWebView
+                resultMsg?.sendToTarget()
+                return true
+            }
         }
     }
 
     private fun handleCustomUrl(url: String): Boolean {
-        // 1. ANDROID INTENT SCHEME (intent://...) - used by Truecaller, Fastrr, UPI gateways
+        // 1. UPI & PAYMENT APPS (GPay, PhonePe, Tez, Paytm, BHIM, CRED, MobiKwik)
+        if (url.startsWith("upi://", ignoreCase = true) ||
+            url.startsWith("gpay://", ignoreCase = true) ||
+            url.startsWith("tez://", ignoreCase = true) ||
+            url.startsWith("phonepe://", ignoreCase = true) ||
+            url.startsWith("paytmmp://", ignoreCase = true) ||
+            url.startsWith("paytm://", ignoreCase = true) ||
+            url.startsWith("bhim://", ignoreCase = true) ||
+            url.startsWith("credpay://", ignoreCase = true) ||
+            url.startsWith("mobikwik://", ignoreCase = true)
+        ) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+                // Launch via system chooser so GPay, PhonePe, Paytm all appear
+                val chooser = Intent.createChooser(intent, "Pay with UPI")
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(chooser)
+                return true
+            } catch (e: Exception) {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                    return true
+                } catch (e2: Exception) {
+                    Toast.makeText(this@MainActivity, "No UPI payment app found (GPay, PhonePe, Paytm)", Toast.LENGTH_SHORT).show()
+                }
+                return true
+            }
+        }
+
+        // 2. ANDROID INTENT SCHEME (intent://...) - used by Truecaller, Fastrr, UPI gateways
         if (url.startsWith("intent://", ignoreCase = true)) {
             try {
                 val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
                 intent.addCategory(Intent.CATEGORY_BROWSABLE)
                 intent.component = null
                 intent.selector = null
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                // Try launching the target app directly (Truecaller, UPI app, etc.)
                 try {
                     startActivity(intent)
                     return true
                 } catch (e: Exception) {
-                    // Target app is not installed or cannot open
+                    // Check if intent is for a UPI payment
+                    val scheme = intent.scheme
+                    val data = intent.dataString
+                    if (scheme.equals("upi", ignoreCase = true) || data?.startsWith("upi://", ignoreCase = true) == true) {
+                        try {
+                            val upiIntent = Intent(Intent.ACTION_VIEW, Uri.parse(data ?: "upi://pay"))
+                            upiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val chooser = Intent.createChooser(upiIntent, "Pay with UPI")
+                            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(chooser)
+                            return true
+                        } catch (eUpi: Exception) {
+                            Toast.makeText(this@MainActivity, "Please install a UPI app (PhonePe/GPay/Paytm) to pay", Toast.LENGTH_SHORT).show()
+                            return true
+                        }
+                    }
+
+                    // Fallback to browser URL if provided
                     val fallbackUrl = intent.getStringExtra("browser_fallback_url")
                     if (!fallbackUrl.isNullOrEmpty()) {
                         webView.loadUrl(fallbackUrl)
@@ -139,15 +226,11 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     val pkg = intent.`package`
-                    val scheme = intent.scheme
                     if (!pkg.isNullOrEmpty() && (pkg.contains("truecaller") || scheme?.contains("truecaller") == true)) {
                         Toast.makeText(this@MainActivity, "Truecaller app not installed on this device", Toast.LENGTH_SHORT).show()
                         return true
                     }
 
-                    if (scheme.equals("upi", ignoreCase = true)) {
-                        Toast.makeText(this@MainActivity, "Please install a UPI app (PhonePe/GPay/Paytm) to pay", Toast.LENGTH_SHORT).show()
-                    }
                     return true
                 }
             } catch (e: Exception) {
@@ -155,7 +238,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 2. TRUECALLER DIRECT SCHEMES (truecallersdk://, truecaller://, tc://)
+        // 3. TRUECALLER DIRECT SCHEMES (truecallersdk://, truecaller://, tc://)
         if (url.startsWith("truecallersdk://", ignoreCase = true) ||
             url.startsWith("truecaller://", ignoreCase = true) ||
             url.startsWith("tc://", ignoreCase = true)
@@ -170,24 +253,6 @@ class MainActivity : AppCompatActivity() {
             return true
         }
 
-        // 3. UPI & PAYMENT APPS (PhonePe, GPay, Paytm, BHIM, CRED, MobiKwik)
-        if (url.startsWith("upi://", ignoreCase = true) ||
-            url.startsWith("phonepe://", ignoreCase = true) ||
-            url.startsWith("gpay://", ignoreCase = true) ||
-            url.startsWith("paytmmp://", ignoreCase = true) ||
-            url.startsWith("bhim://", ignoreCase = true) ||
-            url.startsWith("credpay://", ignoreCase = true) ||
-            url.startsWith("mobikwik://", ignoreCase = true)
-        ) {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "No UPI payment app found on device", Toast.LENGTH_SHORT).show()
-            }
-            return true
-        }
-
         // 4. WHATSAPP SUPPORT
         if (url.startsWith("whatsapp://", ignoreCase = true) ||
             url.contains("wa.me", ignoreCase = true) ||
@@ -195,6 +260,7 @@ class MainActivity : AppCompatActivity() {
         ) {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
@@ -209,6 +275,7 @@ class MainActivity : AppCompatActivity() {
         ) {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
             } catch (e: Exception) {
                 // ignore
@@ -221,6 +288,7 @@ class MainActivity : AppCompatActivity() {
         if (!isHttp) {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
             } catch (e: Exception) {
                 // ignore

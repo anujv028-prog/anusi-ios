@@ -51,8 +51,12 @@
 		<string>whatsapp</string>
 		<string>upi</string>
 		<string>paytmmp</string>
+		<string>paytm</string>
 		<string>phonepe</string>
 		<string>gpay</string>
+		<string>tez</string>
+		<string>bhim</string>
+		<string>credpay</string>
 		<string>instagram</string>
 	</array>
 </dict>
