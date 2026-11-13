@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'in.anusi.app'
+    namespace 'com.anusi.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "in.anusi.app"
+        applicationId "com.anusi.app"
         minSdk 24
         targetSdk 34
         versionCode 1

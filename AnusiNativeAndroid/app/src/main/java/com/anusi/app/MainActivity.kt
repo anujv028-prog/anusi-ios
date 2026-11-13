@@ -1,4 +1,4 @@
-package in.anusi.app
+package com.anusi.app
 
 import android.annotation.SuppressLint
 import android.content.Intent
