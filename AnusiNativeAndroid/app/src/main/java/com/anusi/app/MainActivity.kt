@@ -13,6 +13,7 @@ import android.view.animation.AlphaAnimation
 import android.view.animation.AnimationSet
 import android.view.animation.OvershootInterpolator
 import android.view.animation.ScaleAnimation
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -22,6 +23,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
@@ -57,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(targetUrl)
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         val settings = webView.settings
         settings.javaScriptEnabled = true
@@ -67,33 +70,24 @@ class MainActivity : AppCompatActivity() {
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        settings.javaScriptCanOpenWindowsAutomatically = true
+        settings.setSupportMultipleWindows(false)
+
+        // Enable third-party cookies for Shiprocket Fastrr and payment gateways
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        cookieManager.setAcceptThirdPartyCookies(webView, true)
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
-                val isHttp = url.startsWith("http://") || url.startsWith("https://")
+                return handleCustomUrl(url)
+            }
 
-                if (!isHttp) {
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        startActivity(intent)
-                        return true
-                    } catch (e: Exception) {
-                        return false
-                    }
-                }
-
-                if (url.contains("wa.me") || url.contains("api.whatsapp.com")) {
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        startActivity(intent)
-                        return true
-                    } catch (e: Exception) {
-                        // ignore
-                    }
-                }
-
-                return false
+            @Deprecated("Deprecated in Java")
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                if (url == null) return false
+                return handleCustomUrl(url)
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -121,6 +115,117 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun handleCustomUrl(url: String): Boolean {
+        // 1. BLOCK TRUECALLER (Shiprocket Fastrr will cleanly fall back to SMS OTP)
+        if (url.startsWith("truecaller://", ignoreCase = true) ||
+            url.startsWith("truecallersdk://", ignoreCase = true) ||
+            url.startsWith("tc://", ignoreCase = true) ||
+            url.contains("truecaller", ignoreCase = true)
+        ) {
+            // Silently consume to prevent error screen; Fastrr automatically shows standard OTP
+            return true
+        }
+
+        // 2. UPI & PAYMENT APPS (PhonePe, GPay, Paytm, BHIM, CRED, MobiKwik)
+        if (url.startsWith("upi://", ignoreCase = true) ||
+            url.startsWith("phonepe://", ignoreCase = true) ||
+            url.startsWith("gpay://", ignoreCase = true) ||
+            url.startsWith("paytmmp://", ignoreCase = true) ||
+            url.startsWith("bhim://", ignoreCase = true) ||
+            url.startsWith("credpay://", ignoreCase = true) ||
+            url.startsWith("mobikwik://", ignoreCase = true)
+        ) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Payment app not found on device", Toast.LENGTH_SHORT).show()
+            }
+            return true
+        }
+
+        // 3. WHATSAPP SUPPORT
+        if (url.startsWith("whatsapp://", ignoreCase = true) ||
+            url.contains("wa.me", ignoreCase = true) ||
+            url.contains("api.whatsapp.com", ignoreCase = true)
+        ) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+            }
+            return true
+        }
+
+        // 4. DIALER & EMAIL
+        if (url.startsWith("tel:", ignoreCase = true) ||
+            url.startsWith("mailto:", ignoreCase = true) ||
+            url.startsWith("sms:", ignoreCase = true)
+        ) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            } catch (e: Exception) {
+                // ignore
+            }
+            return true
+        }
+
+        // 5. ANDROID INTENT SCHEME (intent://...)
+        if (url.startsWith("intent://", ignoreCase = true)) {
+            try {
+                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                val pkg = intent.`package`
+                val scheme = intent.scheme
+
+                // Block Truecaller if invoked via intent://
+                if (scheme?.contains("truecaller", ignoreCase = true) == true ||
+                    pkg?.contains("truecaller", ignoreCase = true) == true ||
+                    url.contains("truecaller", ignoreCase = true)
+                ) {
+                    return true
+                }
+
+                // If an installed app can handle this intent (e.g. UPI app)
+                val resolveInfo = packageManager.resolveActivity(intent, 0)
+                if (resolveInfo != null) {
+                    startActivity(intent)
+                    return true
+                }
+
+                // Fallback to web URL if available in intent
+                val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                if (!fallbackUrl.isNullOrEmpty()) {
+                    webView.loadUrl(fallbackUrl)
+                    return true
+                }
+
+                if (scheme.equals("upi", ignoreCase = true)) {
+                    Toast.makeText(this@MainActivity, "No UPI app found for payment", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                // ignore
+            }
+            return true // Always consume intent:// so WebView never shows net::ERR_UNKNOWN_URL_SCHEME
+        }
+
+        // 6. ALL OTHER NON-HTTP SCHEMES
+        val isHttp = url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
+        if (!isHttp) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            } catch (e: Exception) {
+                // ignore
+            }
+            return true // Consume so WebView never shows net::ERR_UNKNOWN_URL_SCHEME
+        }
+
+        // Standard HTTP / HTTPS URL -> allow WebView to load normally
+        return false
     }
 
     private fun startFlipkartMyntraAnimation() {
