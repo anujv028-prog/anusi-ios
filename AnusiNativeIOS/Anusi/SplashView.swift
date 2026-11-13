@@ -3,81 +3,122 @@ import SwiftUI
 struct SplashView: View {
     @Binding var isFinished: Bool
     
-    @State private var scale: CGFloat = 0.82
-    @State private var opacity: Double = 0.0
-    @State private var shimmerOffset: CGFloat = -200
-    @State private var butterflyOffset: CGFloat = 0
-    @State private var outerGlow: Double = 0.0
+    // In-animation states
+    @State private var logoScale: CGFloat = 0.78
+    @State private var logoOpacity: Double = 0.0
+    @State private var logoOffsetY: CGFloat = 18
+    @State private var glowOpacity: Double = 0.0
+    
+    // Butterfly floating breath
+    @State private var floatOffset: CGFloat = 0.0
+    
+    // Shimmer sheen
+    @State private var shimmerOffset: CGFloat = -260
+    
+    // Out-animation states (Exit animation)
+    @State private var outScale: CGFloat = 1.0
+    @State private var splashOverallOpacity: Double = 1.0
     
     var body: some View {
         ZStack {
-            // Elegant background
+            // Luxury pure white background
             Color.white
                 .ignoresSafeArea()
             
-            // Subtle luxury ambient radial glow
+            // Subtle ambient warm gold radiance in the center
             RadialGradient(
                 gradient: Gradient(colors: [
-                    Color(red: 0.98, green: 0.94, blue: 0.92).opacity(0.8),
+                    Color(red: 0.99, green: 0.96, blue: 0.94).opacity(0.95),
                     Color.white
                 ]),
                 center: .center,
-                startRadius: 20,
-                endRadius: 280
+                startRadius: 30,
+                endRadius: 340
             )
             .ignoresSafeArea()
             
-            VStack(spacing: 24) {
-                Spacer()
+            // Perfectly Centered Luxury Logo
+            ZStack {
+                // Soft Rose-Gold Glow
+                Image("logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 300)
+                    .blur(radius: 22)
+                    .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.58))
+                    .opacity(glowOpacity * 0.35)
+                    .scaleEffect(logoScale * outScale)
+                    .offset(y: logoOffsetY + floatOffset)
                 
-                ZStack {
-                    // Logo Image
-                    Image("logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 290)
-                        .shadow(color: Color(red: 0.85, green: 0.65, blue: 0.58).opacity(outerGlow), radius: 18, x: 0, y: 8)
-                        .scaleEffect(scale)
-                        .opacity(opacity)
-                        .offset(y: butterflyOffset)
-                }
-                
-                Spacer()
-                
-                // Subtle luxury tagline or progress indicator
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.78, green: 0.52, blue: 0.46)))
-                        .scaleEffect(0.9)
-                        .opacity(opacity)
-                    
-                    Text("LUXURY AWAITS")
-                        .font(.system(size: 11, weight: .light, design: .serif))
-                        .tracking(4)
-                        .foregroundColor(Color(red: 0.60, green: 0.45, blue: 0.40))
-                        .opacity(opacity * 0.85)
-                }
-                .padding(.bottom, 40)
+                // Sharp Foreground Logo with metallic sheen
+                Image("logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 300)
+                    .scaleEffect(logoScale * outScale)
+                    .opacity(logoOpacity)
+                    .offset(y: logoOffsetY + floatOffset)
+                    .overlay(
+                        // Moving Diamond/Metallic Shimmer Sweep
+                        GeometryReader { geo in
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.white.opacity(0.0),
+                                    Color.white.opacity(0.6),
+                                    Color.white.opacity(0.0)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            .frame(width: 80, height: geo.size.height * 1.6)
+                            .rotationEffect(.degrees(25))
+                            .offset(x: shimmerOffset)
+                            .mask(
+                                Image("logo")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: 300)
+                            )
+                        }
+                    )
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
+        .opacity(splashOverallOpacity)
         .onAppear {
-            // 1. Smooth Fade & Scale in
-            withAnimation(.easeOut(duration: 1.1)) {
-                scale = 1.0
-                opacity = 1.0
-                outerGlow = 0.35
+            runAnimationSequence()
+        }
+    }
+    
+    private func runAnimationSequence() {
+        // 1. IN-ANIMATION: Elegant scale-in and fade-in (0s - 1.1s)
+        withAnimation(.easeOut(duration: 1.15)) {
+            logoScale = 1.0
+            logoOpacity = 1.0
+            logoOffsetY = 0
+            glowOpacity = 1.0
+        }
+        
+        // 2. METALLIC SHIMMER: Sheen moves across the rose gold logo and butterfly (0.5s - 1.8s)
+        withAnimation(.easeInOut(duration: 1.3).delay(0.45)) {
+            shimmerOffset = 360
+        }
+        
+        // 3. BUTTERFLY FLOAT: Subtle hover motion
+        withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
+            floatOffset = -5
+        }
+        
+        // 4. OUT-ANIMATION (Exit): Logo gracefully expands & dissolves into the live website (2.4s - 3.1s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.3) {
+            withAnimation(.easeInOut(duration: 0.7)) {
+                outScale = 1.10
+                splashOverallOpacity = 0.0
             }
             
-            // 2. Butterfly subtle breathing float
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                butterflyOffset = -6
-            }
-            
-            // 3. Transition to web after 2.4s
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                withAnimation(.easeInOut(duration: 0.6)) {
-                    isFinished = true
-                }
+            // Finish splash after exit animation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+                isFinished = true
             }
         }
     }

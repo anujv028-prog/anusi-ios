@@ -7,13 +7,10 @@ struct ContentView: View {
         ZStack {
             // Main Website WebView
             WebViewContainer(urlString: "https://anusi.in")
-                .opacity(isSplashFinished ? 1 : 0)
-                .animation(.easeInOut(duration: 0.5), value: isSplashFinished)
             
-            // Animated Splash Screen
+            // Animated Splash Screen with In & Out Animations
             if !isSplashFinished {
                 SplashView(isFinished: $isSplashFinished)
-                    .transition(.opacity)
                     .zIndex(1)
             }
         }

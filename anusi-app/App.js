@@ -2,75 +2,67 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
-  Text,
   Image,
   Animated,
   Easing,
   StatusBar,
   SafeAreaView,
-  Platform,
   Linking,
   TouchableOpacity,
+  Text,
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const TARGET_URL = 'https://anusi.in';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
-  const [webViewLoaded, setWebViewLoaded] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
 
   const webViewRef = useRef(null);
 
-  // Animation values
+  // In-animation states
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const scaleAnim = useRef(new Animated.Value(0.78)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+
+  // Out-animation states
   const splashOpacity = useRef(new Animated.Value(1)).current;
-  const textFadeAnim = useRef(new Animated.Value(0)).current;
+  const outScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // 1. Entrance animation (fade and scale up)
+    // 1. IN-ANIMATION: Smooth luxury scale-in and fade-in
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1200,
+        duration: 1100,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      Animated.timing(scaleAnim, {
         toValue: 1,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.timing(textFadeAnim, {
-        toValue: 1,
-        duration: 1500,
-        delay: 400,
-        easing: Easing.out(Easing.ease),
+        duration: 1100,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
-    // 2. Butterfly subtle breathing float loop
+    // 2. BUTTERFLY BREATH / FLOAT: Subtle hover loop
     const floatLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, {
-          toValue: -6,
-          duration: 1400,
+          toValue: -5,
+          duration: 1300,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
         Animated.timing(floatAnim, {
-          toValue: 4,
-          duration: 1400,
+          toValue: 3,
+          duration: 1300,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
@@ -78,12 +70,11 @@ export default function App() {
     );
     floatLoop.start();
 
-    // 3. Keep splash screen for at least 2.5s for luxury branding feel, then fade out
+    // 3. OUT-ANIMATION: Majestic expand & fade-out transition after 2.4s
     const timer = setTimeout(() => {
       dismissSplash();
-    }, 2800);
+    }, 2400);
 
-    // Hardware back press handling for Android
     const onBackPress = () => {
       if (canGoBack && webViewRef.current) {
         webViewRef.current.goBack();
@@ -101,37 +92,37 @@ export default function App() {
   }, [canGoBack]);
 
   const dismissSplash = () => {
-    Animated.timing(splashOpacity, {
-      toValue: 0,
-      duration: 600,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
+    Animated.parallel([
+      Animated.timing(outScaleAnim, {
+        toValue: 1.10,
+        duration: 700,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 700,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
       setShowSplash(false);
     });
   };
 
-  // Intercept links like WhatsApp, UPI, phone calls, etc.
   const handleShouldStartLoadWithRequest = (request) => {
     const { url } = request;
-
-    // Check if it's an external app scheme
     const isHttp = url.startsWith('http://') || url.startsWith('https://');
-    const isAnusi = url.includes('anusi.in');
 
     if (!isHttp) {
-      // e.g. whatsapp://, tel:, mailto:, upi:, paytmmp:, phonepe:
       Linking.canOpenURL(url)
         .then((supported) => {
-          if (supported) {
-            Linking.openURL(url);
-          }
+          if (supported) Linking.openURL(url);
         })
-        .catch((err) => console.log('Link open error:', err));
+        .catch(() => {});
       return false;
     }
 
-    // Handle WhatsApp web redirect
     if (url.includes('wa.me') || url.includes('api.whatsapp.com')) {
       Linking.openURL(url).catch(() => {});
       return false;
@@ -153,7 +144,6 @@ export default function App() {
 
       {/* Main WebView Screen */}
       <View style={styles.container}>
-        {/* Loading Progress Bar */}
         {loadProgress < 1 && loadProgress > 0 && (
           <View style={styles.progressBarBackground}>
             <View style={[styles.progressBarFill, { width: `${loadProgress * 100}%` }]} />
@@ -172,14 +162,8 @@ export default function App() {
           sharedCookiesEnabled={true}
           thirdPartyCookiesEnabled={true}
           onLoadProgress={({ nativeEvent }) => setLoadProgress(nativeEvent.progress)}
-          onLoadEnd={() => {
-            setWebViewLoaded(true);
-            setHasError(false);
-          }}
           onError={() => setHasError(true)}
-          onNavigationStateChange={(navState) => {
-            setCanGoBack(navState.canGoBack);
-          }}
+          onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)}
           onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
           renderLoading={() => (
             <View style={styles.loadingContainer}>
@@ -188,7 +172,6 @@ export default function App() {
           )}
         />
 
-        {/* Offline / Error Screen */}
         {hasError && (
           <View style={styles.errorOverlay}>
             <Image
@@ -198,7 +181,7 @@ export default function App() {
             />
             <Text style={styles.errorTitle}>Connection Error</Text>
             <Text style={styles.errorMessage}>
-              Unable to reach ANUSI. Please check your internet connection and tap retry.
+              Unable to reach ANUSI.in. Please check your internet connection and tap retry.
             </Text>
             <TouchableOpacity style={styles.retryButton} onPress={handleRetry} activeOpacity={0.8}>
               <Text style={styles.retryButtonText}>RETRY</Text>
@@ -207,42 +190,32 @@ export default function App() {
         )}
       </View>
 
-      {/* Animated Splash Screen Overlay */}
+      {/* Luxury Animated Splash Screen */}
       {showSplash && (
-        <Animated.View style={[styles.splashContainer, { opacity: splashOpacity }]} pointerEvents={showSplash ? 'auto' : 'none'}>
-          <LinearGradient
-            colors={['#FFFFFF', '#FDF9F7', '#FAF3F0']}
-            style={styles.splashGradient}
-          >
-            <View style={styles.splashCenter}>
-              <Animated.View
-                style={[
-                  styles.logoWrapper,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{ scale: scaleAnim }, { translateY: floatAnim }],
-                  },
-                ]}
-              >
-                <Image
-                  source={require('./assets/logo.png')}
-                  style={styles.splashLogo}
-                  resizeMode="contain"
-                />
-              </Animated.View>
-
-              <Animated.View style={[styles.taglineWrapper, { opacity: textFadeAnim }]}>
-                <View style={styles.goldLine} />
-                <Text style={styles.tagline}>HANDCRAFTED LUXURY</Text>
-                <View style={styles.goldLine} />
-              </Animated.View>
-            </View>
-
-            <Animated.View style={[styles.splashFooter, { opacity: textFadeAnim }]}>
-              <ActivityIndicator size="small" color="#C48B71" />
-              <Text style={styles.footerText}>anusi.in</Text>
+        <Animated.View
+          style={[styles.splashContainer, { opacity: splashOpacity }]}
+          pointerEvents={showSplash ? 'auto' : 'none'}
+        >
+          <View style={styles.splashCenter}>
+            <Animated.View
+              style={[
+                styles.logoWrapper,
+                {
+                  opacity: fadeAnim,
+                  transform: [
+                    { scale: Animated.multiply(scaleAnim, outScaleAnim) },
+                    { translateY: floatAnim },
+                  ],
+                },
+              ]}
+            >
+              <Image
+                source={require('./assets/logo.png')}
+                style={styles.splashLogo}
+                resizeMode="contain"
+              />
             </Animated.View>
-          </LinearGradient>
+          </View>
         </Animated.View>
       )}
     </SafeAreaView>
@@ -328,63 +301,27 @@ const styles = StyleSheet.create({
   },
   splashContainer: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
     zIndex: 9999,
-  },
-  splashGradient: {
-    flex: 1,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 60,
   },
   splashCenter: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
   },
   logoWrapper: {
-    width: '82%',
+    width: '80%',
     maxWidth: 320,
     aspectRatio: 1.8,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#C48B71',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
   },
   splashLogo: {
     width: '100%',
     height: '100%',
-  },
-  taglineWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 25,
-    paddingHorizontal: 20,
-  },
-  goldLine: {
-    width: 35,
-    height: 1,
-    backgroundColor: '#C48B71',
-    opacity: 0.5,
-  },
-  tagline: {
-    fontSize: 11,
-    letterSpacing: 4,
-    color: '#8A685B',
-    fontWeight: '500',
-    marginHorizontal: 12,
-  },
-  splashFooter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  footerText: {
-    fontSize: 12,
-    letterSpacing: 1.5,
-    color: '#A08075',
-    fontWeight: '400',
   },
 });
