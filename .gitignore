@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Expo & Build artifacts
+.expo/
+dist/
+web-build/
+*.ipa
+*.xcarchive
+build/
+DerivedData/
+
+# OS files
+.DS_Store
+Thumbs.db
