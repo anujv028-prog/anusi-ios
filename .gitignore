@@ -10,6 +10,8 @@ web-build/
 *.xcarchive
 build/
 DerivedData/
+ANUSI.app/
+app-build.tar.gz
 
 # OS files
 .DS_Store
