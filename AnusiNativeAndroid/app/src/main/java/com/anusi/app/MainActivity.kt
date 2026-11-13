@@ -118,17 +118,59 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleCustomUrl(url: String): Boolean {
-        // 1. BLOCK TRUECALLER (Shiprocket Fastrr will cleanly fall back to SMS OTP)
-        if (url.startsWith("truecaller://", ignoreCase = true) ||
-            url.startsWith("truecallersdk://", ignoreCase = true) ||
-            url.startsWith("tc://", ignoreCase = true) ||
-            url.contains("truecaller", ignoreCase = true)
+        // 1. ANDROID INTENT SCHEME (intent://...) - used by Truecaller, Fastrr, UPI gateways
+        if (url.startsWith("intent://", ignoreCase = true)) {
+            try {
+                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                intent.component = null
+                intent.selector = null
+
+                // Try launching the target app directly (Truecaller, UPI app, etc.)
+                try {
+                    startActivity(intent)
+                    return true
+                } catch (e: Exception) {
+                    // Target app is not installed or cannot open
+                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                    if (!fallbackUrl.isNullOrEmpty()) {
+                        webView.loadUrl(fallbackUrl)
+                        return true
+                    }
+
+                    val pkg = intent.`package`
+                    val scheme = intent.scheme
+                    if (!pkg.isNullOrEmpty() && (pkg.contains("truecaller") || scheme?.contains("truecaller") == true)) {
+                        Toast.makeText(this@MainActivity, "Truecaller app not installed on this device", Toast.LENGTH_SHORT).show()
+                        return true
+                    }
+
+                    if (scheme.equals("upi", ignoreCase = true)) {
+                        Toast.makeText(this@MainActivity, "Please install a UPI app (PhonePe/GPay/Paytm) to pay", Toast.LENGTH_SHORT).show()
+                    }
+                    return true
+                }
+            } catch (e: Exception) {
+                return true
+            }
+        }
+
+        // 2. TRUECALLER DIRECT SCHEMES (truecallersdk://, truecaller://, tc://)
+        if (url.startsWith("truecallersdk://", ignoreCase = true) ||
+            url.startsWith("truecaller://", ignoreCase = true) ||
+            url.startsWith("tc://", ignoreCase = true)
         ) {
-            // Silently consume to prevent error screen; Fastrr automatically shows standard OTP
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Truecaller app not installed on this device", Toast.LENGTH_SHORT).show()
+            }
             return true
         }
 
-        // 2. UPI & PAYMENT APPS (PhonePe, GPay, Paytm, BHIM, CRED, MobiKwik)
+        // 3. UPI & PAYMENT APPS (PhonePe, GPay, Paytm, BHIM, CRED, MobiKwik)
         if (url.startsWith("upi://", ignoreCase = true) ||
             url.startsWith("phonepe://", ignoreCase = true) ||
             url.startsWith("gpay://", ignoreCase = true) ||
@@ -141,12 +183,12 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 startActivity(intent)
             } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Payment app not found on device", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "No UPI payment app found on device", Toast.LENGTH_SHORT).show()
             }
             return true
         }
 
-        // 3. WHATSAPP SUPPORT
+        // 4. WHATSAPP SUPPORT
         if (url.startsWith("whatsapp://", ignoreCase = true) ||
             url.contains("wa.me", ignoreCase = true) ||
             url.contains("api.whatsapp.com", ignoreCase = true)
@@ -160,7 +202,7 @@ class MainActivity : AppCompatActivity() {
             return true
         }
 
-        // 4. DIALER & EMAIL
+        // 5. DIALER, SMS & EMAIL
         if (url.startsWith("tel:", ignoreCase = true) ||
             url.startsWith("mailto:", ignoreCase = true) ||
             url.startsWith("sms:", ignoreCase = true)
@@ -174,44 +216,6 @@ class MainActivity : AppCompatActivity() {
             return true
         }
 
-        // 5. ANDROID INTENT SCHEME (intent://...)
-        if (url.startsWith("intent://", ignoreCase = true)) {
-            try {
-                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
-                val pkg = intent.`package`
-                val scheme = intent.scheme
-
-                // Block Truecaller if invoked via intent://
-                if (scheme?.contains("truecaller", ignoreCase = true) == true ||
-                    pkg?.contains("truecaller", ignoreCase = true) == true ||
-                    url.contains("truecaller", ignoreCase = true)
-                ) {
-                    return true
-                }
-
-                // If an installed app can handle this intent (e.g. UPI app)
-                val resolveInfo = packageManager.resolveActivity(intent, 0)
-                if (resolveInfo != null) {
-                    startActivity(intent)
-                    return true
-                }
-
-                // Fallback to web URL if available in intent
-                val fallbackUrl = intent.getStringExtra("browser_fallback_url")
-                if (!fallbackUrl.isNullOrEmpty()) {
-                    webView.loadUrl(fallbackUrl)
-                    return true
-                }
-
-                if (scheme.equals("upi", ignoreCase = true)) {
-                    Toast.makeText(this@MainActivity, "No UPI app found for payment", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                // ignore
-            }
-            return true // Always consume intent:// so WebView never shows net::ERR_UNKNOWN_URL_SCHEME
-        }
-
         // 6. ALL OTHER NON-HTTP SCHEMES
         val isHttp = url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
         if (!isHttp) {
@@ -221,7 +225,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 // ignore
             }
-            return true // Consume so WebView never shows net::ERR_UNKNOWN_URL_SCHEME
+            return true // Always consume so WebView never shows net::ERR_UNKNOWN_URL_SCHEME
         }
 
         // Standard HTTP / HTTPS URL -> allow WebView to load normally
