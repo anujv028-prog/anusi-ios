@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ANUSI",
-    "slug": "anusi-app",
+    "name": "ANUSI.in",
+    "slug": "aj",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "in.anusi.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
+        "CFBundleDisplayName": "ANUSI.in",
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "ANUSI requires camera access for uploading photos or customer service inquiries.",
         "NSPhotoLibraryUsageDescription": "ANUSI requires access to your photo library for custom jewelry requests.",
         "LSApplicationQueriesSchemes": [
@@ -38,6 +43,11 @@
     },
     "web": {
       "favicon": "./assets/icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "672778a4-e203-49f8-967e-10f33d41cbc9"
+      }
     }
   }
 }

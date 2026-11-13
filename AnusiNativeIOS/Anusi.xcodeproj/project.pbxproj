@@ -261,7 +261,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Anusi/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ANUSI;
+				INFOPLIST_KEY_CFBundleDisplayName = "ANUSI.in";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -286,7 +286,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Anusi/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ANUSI;
+				INFOPLIST_KEY_CFBundleDisplayName = "ANUSI.in";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
